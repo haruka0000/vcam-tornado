@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.js"></script>
+  <title>WEB Camera</title>
+</head>
+<body>
+    <div>
+        <h1>WEB Camera Video</h1>
+        <div>
+            <video id="video"></video>
+        </div>
+    </div>  
+    <script>
+        const video = document.getElementById("video")
+        navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+        }).then(stream => {
+            video.srcObject = stream;
+            video.play()
+        }).catch(e => {
+          console.log(e)
+        })
+    </script>
+    
+    <script type="text/javascript" src="{{ static_url('js/fake_webcam.js') }}"></script>
+</body>
+</html>

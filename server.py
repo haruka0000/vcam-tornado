@@ -1,18 +1,41 @@
 import os
-import tornado.ioloop
-import tornado.web
-from tornado.escape import json_decode, json_encode
-import signal
-from tornado.options import options
-from pathlib import Path
 import numpy as np
 import io
-from PIL import Image
 import base64
+import signal
+import cv2
 from io import BytesIO 
-from tornado.httpclient import AsyncHTTPClient
+from PIL import Image
+from pathlib import Path
+import tornado.ioloop
+import tornado.web
+from tornado.options import options
+import pyfakewebcam
+import time
+
+WIDTH, HEIGHT = None, None
+fakecam = None
+fake_webcam_path = '/dev/video42'
 
 accect_ctlc = False
+
+
+## 偽装カメラの初期化
+def init_fakecam(w, h):
+    global fakecam, WIDTH, HEIGHT
+    WIDTH, HEIGHT = w, h
+
+    ## カメラ偽装の初期化
+    fakecam = pyfakewebcam.FakeWebcam(fake_webcam_path, w, h)
+    print("[init] fake_cam, [w, h] %d, %d"%(w,h))
+
+
+## カメラ偽装の更新
+def update_fakecam(frame):
+    global fakecam
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    fakecam.schedule_frame(rgb_frame)
+
 
 def signal_handler(signum, frame):
     global accect_ctlc
@@ -23,54 +46,56 @@ def try_exit():
     if accect_ctlc:
         tornado.ioloop.IOLoop.instance().stop()
 
-class MainHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.write("Hello world")
-
 
 class VCamHandler(tornado.web.RequestHandler):
     def post(self, *arg, **kwargs):
-        # request_json = json_decode(self.request.body)
         try:
-            base64_png = self.get_argument("data")
-            code = base64.b64decode(base64_png.split(',')[1])  # remove header
-            image_decoded = Image.open(BytesIO(code))
+            base64_png = self.get_argument("image")
 
-            print(image_decoded.size)
+            ## ヘッダー削除
+            code = base64.b64decode(base64_png.split(',')[1])
+            
+            ## PILイメージ <- バイナリーストリーム
+            image_pil = Image.open(BytesIO(code))
+
+            ## numpy配列(RGBA) <- PILイメージ
+            img_numpy = np.asarray(image_pil)
+
+            ## numpy配列(BGR) <- numpy配列(RGBA)
+            frame = cv2.cvtColor(img_numpy, cv2.COLOR_RGBA2BGR)
+
+            h, w = frame.shape[:2]
+
+            if fakecam == None:
+                ## 偽装カメラの初期化
+                init_fakecam(w, h)
+
+            ## 偽装カメラの更新
+            update_fakecam(frame)
+
         except:
             pass
-        # #バイナリーストリーム <- バリナリデータ
-        # img_binarystream = io.BytesIO(request_json['data'].encode())
 
-        # #PILイメージ <- バイナリーストリーム
-        # img_pil = Image.open(img_binarystream)
-        # # print(img_pil.mode) #この段階だとRGBA
 
-        # #numpy配列(RGBA) <- PILイメージ
-        # img_numpy = np.asarray(img_pil)
-
-        # print(img_numpy.shape)
-        # #numpy配列(BGR) <- numpy配列(RGBA)
-        # img_numpy_bgr = cv2.cvtColor(img_numpy, cv2.COLOR_RGBA2BGR)
-        self.render("camera.html", username=" static")
-        
-class CameraHandler(tornado.web.RequestHandler):
+class MainHandler(tornado.web.RequestHandler):
     def get(self):
-        self.render("camera.html", username=" static")
+        self.render("index.html")
+
 
 def get_root_path():
     return Path(__file__).resolve().parents[0]
+
 
 def make_app():
     BASE_DIR=get_root_path()
     return tornado.web.Application([
             (r"/", MainHandler),
-            (r"/static", CameraHandler),
-            (r"/vcam", VCamHandler),
+            (r"/fakewebcam", VCamHandler),
         ],
-        static_path=os.path.join(BASE_DIR, "static"),        #※1
-        template_path=os.path.join(BASE_DIR, "templates"),   #※2
+        static_path=os.path.join(BASE_DIR, "static"),   
+        template_path=os.path.join(BASE_DIR, "templates"),
     )
+
 
 if __name__ == "__main__":
     tornado.options.parse_command_line()

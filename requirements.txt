@@ -2,3 +2,8 @@ numpy==1.20.3
 opencv-python==4.5.2.52
 Pillow==8.2.0
 tornado==6.1
+numpy==1.20.3
+opencv-python==4.5.2.52
+Pillow==8.2.0
+pyfakewebcam==0.1.0
+tornado==6.1
