@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WEBカメラの映像を表示</title>
+</head>
+<body>
+    <div>
+        <h1>WEBカメラの映像を表示</h1>
+        <div>
+            <video id="video"></video>
+        </div>
+    </div>  
+    <script>
+        const video = document.getElementById("video")
+        navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+        }).then(stream => {
+            video.srcObject = stream;
+            video.play()
+        }).catch(e => {
+          console.log(e)
+        })
+
+        function sendFrame() {
+            let cEle = document.createElement('canvas');
+            let cCtx = cEle.getContext('2d');
+            let vEle = document.getElementById('video');
+
+            cEle.width  = vEle.videoWidth;   // canvasの幅と高さを、動画の幅と高さに合わせる
+            cEle.height = vEle.videoHeight;
+
+            cCtx.drawImage(vEle, 0, 0);  // canvasに関数実行時の動画のフレームを描画
+
+            // Canvasのデータを取得
+            let canvas_base64 = cEle.toDataURL("image/png");  // DataURI Schemaが返却される
+            // let canvas_bin = atob(canvas_base64.replace(/^.*,/, '')); // Base64からバイナリへ変換
+
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/vcam';
+
+            var request = document.createElement('input');
+            request.type = 'hidden'; //入力フォームが表示されないように
+            request.name = 'data';
+            request.value = canvas_base64;
+
+            form.appendChild(request);
+            document.body.appendChild(form);
+            form.submit();
+            // console.log(canvas_base64)
+            // 送信情報の設定
+            // const param  = {
+            //     method: "POST",
+            //     headers: {
+            //         "Content-Type": "application/json; charset=utf-8"
+            //     },
+            //     body: {data: canvas_base64}
+            // };
+            // fetch("/vcam", param)
+            // サーバへ送信
+            // sendServer("/vcam", param);
+        }
+
+        function sendServer(url, param){
+            fetch(url, param)
+            .then((response)=>{
+                return response.json();
+            })
+            .then((json)=>{
+                if(json.status){
+                    alert("送信に『成功』しました");
+                    setImage(json.result);    //json.resultにはファイル名が入っている
+                }
+                else{
+                    alert("送信に『失敗』しました");
+                    console.log(`[error1] ${json.result}`);
+                }
+            })
+            .catch((error)=>{
+                alert("送信に『失敗』しました");
+                console.log(`[error2] ${error}`);
+            });
+        }
+
+        setInterval('sendFrame()',1000);
+    </script>  
+</body>
+</html>
