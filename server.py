@@ -69,9 +69,10 @@ class VCamHandler(tornado.web.RequestHandler):
             if fakecam == None:
                 ## 偽装カメラの初期化
                 init_fakecam(w, h)
-
-            ## 偽装カメラの更新
-            update_fakecam(frame)
+            
+            if fakecam != None:
+                ## 偽装カメラの更新
+                update_fakecam(frame)
 
         except:
             pass
